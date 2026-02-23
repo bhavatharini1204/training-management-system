@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TMS Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .sidebar {
+            width: 220px;
+            background: #1e3a8a;
+            color: white;
+            padding: 20px;
+            height: 100vh;
+        }
+
+        .sidebar h2 {
+            margin-bottom: 30px;
+        }
+
+        .sidebar button {
+            width: 100%;
+            margin-bottom: 10px;
+            background: #2563eb;
+        }
+
+        .main {
+    flex: 1;
+    padding: 30px;
+    background: #f4f6f9;
+    min-height: 100vh;
+}
+
+        .card-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>TMS</h2>
+    <p id="welcome"></p>
+    <p id="roleInfo"></p>
+    <button onclick="logout()">Logout</button>
+</div>
+
+<div class="main">
+    <div id="adminStats" style="display:none; margin-bottom:20px;">
+    <div style="display:flex; gap:20px;">
+        <div class="card-box" style="flex:1; text-align:center;">
+            <h2 id="totalUsers">0</h2>
+            <p>Total Users</p>
+        </div>
+
+        <div class="card-box" style="flex:1; text-align:center;">
+            <h2 id="totalCourses">0</h2>
+            <p>Total Courses</p>
+        </div>
+
+        <div class="card-box" style="flex:1; text-align:center;">
+            <h2 id="totalEnrollments">0</h2>
+            <p>Total Enrollments</p>
+        </div>
+    </div>
+    <div class="card-box" style="margin-top:20px;">
+        <div style="height:450px;">
+    <canvas id="statsChart"></canvas>
+</div>
+    </div>
+</div>
+
+    <div id="adminSection" class="card-box" style="display:none;">
+    <h3>Add Course</h3>
+
+    <input type="text" id="courseName" placeholder="Course Name">
+
+    <textarea id="courseDesc" placeholder="Course Description" 
+        style="width:100%; padding:10px; margin:8px 0;"></textarea>
+
+    <!-- 🔥 ADD THIS DROPDOWN -->
+    <select id="trainerSelect" style="width:100%; padding:10px; margin:8px 0;">
+        <option value="">Select Trainer (Optional)</option>
+    </select>
+
+    <button onclick="addCourse()">Add Course</button>
+
+    <p id="courseMessage"></p>
+</div>
+
+    <div class="card-box">
+        <h3>Available Courses</h3>
+        <div id="courseList"></div>
+    </div>
+    <div id="adminEnrollmentsSection" class="card-box" style="display:none;">
+    <h3>Student Enrollments</h3>
+    <div id="adminEnrollments"></div>
+</div>
+<div id="trainerSection" class="card-box" style="display:none;">
+    <h3>My Assigned Courses</h3>
+    <div id="trainerCourses"></div>
+</div>
+<div id="trainerStudentsSection" class="card-box" style="display:none;">
+    <h3>Students Enrolled In My Courses</h3>
+    <div id="trainerStudents"></div>
+</div>
+
+    <div id="myCoursesSection" class="card-box" style="display:none;">
+        <h3>My Enrolled Courses</h3>
+        <div id="myCourses"></div>
+    </div>
+
+</div>
+
+<script>
+const user = JSON.parse(localStorage.getItem("user"));
+
+if (!user) {
+    window.location.href = "/";
+}
+
+document.getElementById("welcome").innerText = "Welcome " + user.name;
+document.getElementById("roleInfo").innerText = "Role: " + user.role;
+
+if (user.role === "admin") {
+    document.getElementById("adminSection").style.display = "block";
+    document.getElementById("adminEnrollmentsSection").style.display = "block";
+    document.getElementById("adminStats").style.display = "block";
+}
+if (user.role === "trainer") {
+    document.getElementById("trainerSection").style.display = "block";
+    document.getElementById("trainerStudentsSection").style.display = "block";
+}
+
+if (user.role === "user") {
+    document.getElementById("myCoursesSection").style.display = "block";
+}
+
+function logout() {
+    localStorage.removeItem("user");
+    window.location.href = "/";
+}
+
+function addCourse() {
+    fetch("/add-course", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+    course_name: document.getElementById("courseName").value,
+    description: document.getElementById("courseDesc").value,
+    trainer_id: document.getElementById("trainerSelect").value
+})
+    })
+    .then(res => res.text())
+    .then(data => {
+        document.getElementById("courseMessage").innerText = data;
+        loadCourses();
+    });
+}
+
+function loadCourses() {
+    fetch("/courses")
+    .then(res => res.json())
+    .then(data => {
+        const courseList = document.getElementById("courseList");
+        courseList.innerHTML = "";
+
+        data.forEach(course => {
+            const div = document.createElement("div");
+            div.className = "card-box";
+
+            div.innerHTML = `
+                <strong>${course.course_name}</strong>
+                <p>${course.description}</p>
+                ${user.role === "user" ? `<button onclick="enroll(${course.id})">Enroll</button>` : ""}
+            `;
+
+            courseList.appendChild(div);
+        });
+    });
+}
+
+function enroll(courseId) {
+    fetch("/enroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            user_id: user.id,
+            course_id: courseId
+        })
+    })
+    .then(res => res.text())
+    .then(data => {
+        alert(data);
+        loadMyCourses();
+    });
+}
+
+function loadMyCourses() {
+    if (user.role !== "user") return;
+
+    fetch(`/my-courses/${user.id}`)
+    .then(res => res.json())
+    .then(data => {
+        const myCoursesDiv = document.getElementById("myCourses");
+        myCoursesDiv.innerHTML = "";
+
+        data.forEach(course => {
+            const div = document.createElement("div");
+            div.className = "card-box";
+
+            div.innerHTML = `
+                <strong>${course.course_name}</strong>
+                <p>${course.description}</p>
+            `;
+
+            myCoursesDiv.appendChild(div);
+        });
+    });
+}
+function loadAdminEnrollments() {
+    if (user.role !== "admin") return;
+
+    fetch("/admin/enrollments")
+    .then(res => res.json())
+    .then(data => {
+        const container = document.getElementById("adminEnrollments");
+        container.innerHTML = "";
+
+        if (data.length === 0) {
+            container.innerHTML = "<p>No enrollments yet.</p>";
+            return;
+        }
+
+        data.forEach(item => {
+            const div = document.createElement("div");
+            div.className = "card-box";
+
+            div.innerHTML = `
+                <strong>Student:</strong> ${item.student_name}<br>
+                <strong>Email:</strong> ${item.email}<br>
+                <strong>Course:</strong> ${item.course_name}
+            `;
+
+            container.appendChild(div);
+        });
+    });
+}
+function loadAdminStats() {
+    if (user.role !== "admin") return;
+
+    fetch("/admin/stats")
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("totalUsers").innerText = data.totalUsers;
+        document.getElementById("totalCourses").innerText = data.totalCourses;
+        document.getElementById("totalEnrollments").innerText = data.totalEnrollments;
+
+        // 👇 New Chart Code Here
+        const ctx = document.getElementById("statsChart");
+
+        if (window.myChart) {
+            window.myChart.destroy();
+        }
+
+        window.myChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: ["Users", "Courses", "Enrollments"],
+                datasets: [{
+                    label: "System Overview",
+                    data: [
+                        data.totalUsers,
+                        data.totalCourses,
+                        data.totalEnrollments
+                    ],
+                    backgroundColor: ["#2563eb", "#1e3a8a", "#60a5fa"]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+    });
+}
+function loadTrainers() {
+    if (user.role !== "admin") return;
+
+    fetch("/trainers")
+    .then(res => res.json())
+    .then(data => {
+        const select = document.getElementById("trainerSelect");
+
+        data.forEach(trainer => {
+            const option = document.createElement("option");
+            option.value = trainer.id;
+            option.textContent = trainer.name;
+            select.appendChild(option);
+        });
+    });
+}
+loadCourses();
+loadMyCourses();
+loadAdminEnrollments();
+loadAdminStats();
+loadTrainers();
+</script>
+</body>
+</html>
