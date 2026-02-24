@@ -32,7 +32,7 @@ function login() {
         return res.json();
     })
     .then(data => {
-        localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem("user", JSON.stringify(data));
         window.location.href = "dashboard.html";
     })
     .catch(err => alert(err.message));

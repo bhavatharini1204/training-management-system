@@ -9,141 +9,143 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.get("/", (req, res) => {
-    res.redirect("/login.html");
+  res.redirect("/login.html");
 });
-app.use(express.static("public"));
-
 
 // Test Route
 app.get("/", (req, res) => {
-    res.send("Training Management System Backend Running 🚀");
+  res.send("Training Management System Backend Running 🚀");
 });
 // Register User
 app.post("/register", async (req, res) => {
-    const { name, email, password, role } = req.body;
+  const { name, email, password } = req.body;
 
-    if (!name || !email || !password || !role) {
-        return res.status(400).send("All fields are required");
+  // Force role to user only
+  const role = "user";
+
+  if (!name || !email || !password) {
+    return res.status(400).send("All fields required");
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const sql =
+    "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)";
+
+  db.query(sql, [name, email, hashedPassword, role], (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send("User already exists");
     }
 
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const sql = "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)";
-
-        db.query(sql, [name, email, hashedPassword, role], (err, result) => {
-            if (err) {
-                console.log(err);
-                return res.status(500).send("User already exists or error occurred");
-            }
-
-            res.send("User Registered Successfully ✅");
-        });
-
-    } catch (error) {
-        console.log(error);
-        res.status(500).send("Error registering user");
-    }
+    res.send("User Registered Successfully ✅");
+  });
 });
+console.log("Login route loaded");
 app.post("/login", (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).send("Email and password required");
+  const sql = "SELECT * FROM users WHERE email = ?";
+
+  db.query(sql, [email], async (err, result) => {
+    if (err) {
+      return res.status(500).send("Server error");
     }
 
-    const sql = "SELECT * FROM users WHERE email = ?";
+    if (result.length === 0) {
+      return res.status(400).send("User not found");
+    }
 
-    db.query(sql, [email], async (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Server error");
-        }
+    const user = result[0];
 
-        if (result.length === 0) {
-            return res.status(401).send("Invalid credentials ❌");
-        }
+    const isMatch = await bcrypt.compare(password, user.password);
 
-        const user = result[0];
+    if (!isMatch) {
+      return res.status(400).send("Incorrect password");
+    }
 
-        const match = await bcrypt.compare(password, user.password);
-
-        if (!match) {
-            return res.status(401).send("Invalid credentials ❌");
-        }
-
-        res.json({
-            message: "Login successful ✅",
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            }
-        });
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
     });
+  });
 });
 // Create Course (Admin)
 app.post("/add-course", (req, res) => {
-    const { course_name, description, trainer_id } = req.body;
+  if (req.body.role === "admin") {
+    return res.status(403).send("Admin cannot add course");
+  }
+  const { course_name, description, trainer_id } = req.body;
 
-    if (!course_name || !description) {
-        return res.status(400).send("All fields required");
-    }
+  if (!course_name || !description) {
+    return res.status(400).send("All fields required");
+  }
 
-    const sql = "INSERT INTO courses (course_name, description, trainer_id) VALUES (?, ?, ?)";
+  const sql =
+    "INSERT INTO courses (course_name, description, trainer_id) VALUES (?, ?, ?)";
 
-    db.query(sql, [course_name, description, trainer_id || null], (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Error adding course");
-        }
+  db.query(
+    sql,
+    [course_name, description, trainer_id || null],
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).send("Error adding course");
+      }
 
-        res.send("Course added successfully ✅");
-    });
+      res.send("Course added successfully ✅");
+    },
+  );
 });
 // Get All Courses
 app.get("/courses", (req, res) => {
-    const sql = "SELECT * FROM courses";
+  const sql = "SELECT * FROM courses";
 
-    db.query(sql, (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Error fetching courses");
-        }
+  db.query(sql, (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send("Error fetching courses");
+    }
 
-        res.json(result);
-    });
+    res.json(result);
+  });
 });
 // Enroll in Course
 app.post("/enroll", (req, res) => {
-    const { user_id, course_id } = req.body;
+  const { user_id, course_id } = req.body;
 
-    if (!user_id || !course_id) {
-        return res.status(400).send("User ID and Course ID required");
-    }
+  if (!user_id || !course_id) {
+    return res.status(400).send("User ID and Course ID required");
+  }
 
-    const sql = "INSERT INTO enrollments (user_id, course_id) VALUES (?, ?)";
+  const sql = "INSERT INTO enrollments (user_id, course_id) VALUES (?, ?)";
 
-    db.query(sql, [user_id, course_id], (err, result) => {
-        if (err) {
-    if (err.code === "ER_DUP_ENTRY") {
+  db.query(sql, [user_id, course_id], (err, result) => {
+    if (err) {
+      if (err.code === "ER_DUP_ENTRY") {
         return res.send("You are already enrolled in this course ⚠️");
+      }
+
+      console.log(err);
+      return res.status(500).send("Error enrolling");
     }
 
-    console.log(err);
-    return res.status(500).send("Error enrolling");
-}
-
-        res.send("Enrolled successfully ✅");
-    });
+    res.send("Enrolled successfully ✅");
+  });
 });
 // Get Enrolled Courses for a User
 app.get("/my-courses/:userId", (req, res) => {
+
     const userId = req.params.userId;
 
     const sql = `
-        SELECT courses.id, courses.course_name, courses.description
+        SELECT 
+            courses.id,
+            courses.course_name,
+            courses.description,
+            IFNULL(enrollments.progress, 0) AS progress
         FROM enrollments
         JOIN courses ON enrollments.course_id = courses.id
         WHERE enrollments.user_id = ?
@@ -160,8 +162,7 @@ app.get("/my-courses/:userId", (req, res) => {
 });
 // Get All Enrollments (Admin)
 app.get("/admin/enrollments", (req, res) => {
-
-    const sql = `
+  const sql = `
         SELECT 
             users.name AS student_name,
             users.email,
@@ -171,80 +172,82 @@ app.get("/admin/enrollments", (req, res) => {
         JOIN courses ON enrollments.course_id = courses.id
     `;
 
-    db.query(sql, (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Error fetching enrollments");
-        }
+  db.query(sql, (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send("Error fetching enrollments");
+    }
 
-        res.json(result);
-    });
+    res.json(result);
+  });
 });
 // Dashboard Statistics
 app.get("/admin/stats", (req, res) => {
+  const stats = {};
 
-    const stats = {};
+  db.query("SELECT COUNT(*) AS totalUsers FROM users", (err, userResult) => {
+    if (err) return res.status(500).send("Error");
 
-    db.query("SELECT COUNT(*) AS totalUsers FROM users", (err, userResult) => {
+    stats.totalUsers = userResult[0].totalUsers;
+
+    db.query(
+      "SELECT COUNT(*) AS totalCourses FROM courses",
+      (err, courseResult) => {
         if (err) return res.status(500).send("Error");
 
-        stats.totalUsers = userResult[0].totalUsers;
+        stats.totalCourses = courseResult[0].totalCourses;
 
-        db.query("SELECT COUNT(*) AS totalCourses FROM courses", (err, courseResult) => {
+        db.query(
+          "SELECT COUNT(*) AS totalEnrollments FROM enrollments",
+          (err, enrollResult) => {
             if (err) return res.status(500).send("Error");
 
-            stats.totalCourses = courseResult[0].totalCourses;
+            stats.totalEnrollments = enrollResult[0].totalEnrollments;
 
-            db.query("SELECT COUNT(*) AS totalEnrollments FROM enrollments", (err, enrollResult) => {
-                if (err) return res.status(500).send("Error");
-
-                stats.totalEnrollments = enrollResult[0].totalEnrollments;
-
-                res.json(stats);
-            });
-        });
-    });
+            res.json(stats);
+          },
+        );
+      },
+    );
+  });
 });
 // Get All Trainers
 app.get("/trainers", (req, res) => {
+  const sql = "SELECT id, name FROM users WHERE role = 'trainer'";
 
-    const sql = "SELECT id, name FROM users WHERE role = 'trainer'";
+  db.query(sql, (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send("Error fetching trainers");
+    }
 
-    db.query(sql, (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Error fetching trainers");
-        }
-
-        res.json(result);
-    });
+    res.json(result);
+  });
 });
 // Get Courses Assigned to Trainer
 app.get("/trainer-courses/:trainerId", (req, res) => {
+  const trainerId = req.params.trainerId;
 
-    const trainerId = req.params.trainerId;
-
-    const sql = `
+  const sql = `
         SELECT id, course_name, description
         FROM courses
         WHERE trainer_id = ?
     `;
 
-    db.query(sql, [trainerId], (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Error fetching trainer courses");
-        }
+  db.query(sql, [trainerId], (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send("Error fetching trainer courses");
+    }
 
-        res.json(result);
-    });
+    res.json(result);
+  });
 });
 // Get Students Enrolled in Trainer's Courses
 app.get("/trainer-students/:trainerId", (req, res) => {
+  const trainerId = req.params.trainerId;
 
-    const trainerId = req.params.trainerId;
-
-    const sql = `
+  const sql = `
         SELECT 
             courses.course_name,
             users.name AS student_name,
@@ -255,10 +258,83 @@ app.get("/trainer-students/:trainerId", (req, res) => {
         WHERE courses.trainer_id = ?
     `;
 
-    db.query(sql, [trainerId], (err, result) => {
+  db.query(sql, [trainerId], (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send("Error fetching trainer students");
+    }
+
+    res.json(result);
+  });
+});
+app.use(express.static("public"));
+app.put("/update-progress", (req, res) => {
+  const { user_id, course_id, progress } = req.body;
+
+  if (progress < 0 || progress > 100) {
+    return res.status(400).send("Progress must be between 0 and 100");
+  }
+
+  const sql = `
+        UPDATE enrollments
+        SET progress = ?
+        WHERE user_id = ? AND course_id = ?
+    `;
+
+  db.query(sql, [progress, user_id, course_id], (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send("Error updating progress");
+    }
+
+    res.send("Progress updated successfully");
+  });
+});
+app.get("/trainer-students/:trainerId", (req, res) => {
+  const trainerId = req.params.trainerId;
+
+  const sql = `
+        SELECT 
+            users.id AS user_id,
+            users.name AS student_name,
+            users.email,
+            courses.id AS course_id,
+            courses.course_name,
+            enrollments.progress
+        FROM enrollments
+        JOIN users ON enrollments.user_id = users.id
+        JOIN courses ON enrollments.course_id = courses.id
+        WHERE courses.trainer_id = ?
+    `;
+
+  db.query(sql, [trainerId], (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send("Error fetching trainer students");
+    }
+
+    res.json(result);
+  });
+});
+app.get("/my-courses/:userId", (req, res) => {
+
+    const userId = req.params.userId;
+
+    const sql = `
+        SELECT 
+            courses.id,
+            courses.course_name,
+            courses.description,
+            enrollments.progress
+        FROM enrollments
+        JOIN courses ON enrollments.course_id = courses.id
+        WHERE enrollments.user_id = ?
+    `;
+
+    db.query(sql, [userId], (err, result) => {
         if (err) {
             console.log(err);
-            return res.status(500).send("Error fetching trainer students");
+            return res.status(500).send("Error fetching enrolled courses");
         }
 
         res.json(result);
@@ -267,5 +343,5 @@ app.get("/trainer-students/:trainerId", (req, res) => {
 const PORT = 5000;
 
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

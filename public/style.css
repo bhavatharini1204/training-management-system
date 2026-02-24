@@ -1,52 +1,156 @@
-body {
+* {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #2563eb, #1e3a8a);
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+body {
+    display: flex;
+    background: #f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 240px;
+    height: 100vh;
+    background: #1e293b;
+    color: white;
+    padding: 25px;
+    position: fixed;
+}
+
+.sidebar h2 {
+    margin-bottom: 30px;
+    color: #38bdf8;
+}
+
+.sidebar p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.sidebar button {
+    margin-top: 20px;
+    padding: 10px;
+    width: 100%;
+    background: #ef4444;
+    border: none;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.sidebar button:hover {
+    background: #dc2626;
+}
+
+/* MAIN AREA */
+.main {
+    margin-left: 240px;
+    padding: 30px;
+    width: calc(100% - 240px);
+    overflow-y: auto;
+}
+
+/* CARD STYLE */
+.card-box {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+    transition: 0.3s;
+}
+
+.card-box:hover {
+    transform: translateY(-3px);
+}
+
+/* STATS CARDS */
+.stat-card {
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: white;
+}
+
+.stat-card h2 {
+    font-size: 28px;
+}
+
+.stat-card p {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* INPUTS */
+input, textarea, select {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    outline: none;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: #2563eb;
+}
+
+/* BUTTON */
+button {
+    padding: 10px 15px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #1e40af;
+}
+
+/* COURSE CARD */
+.course-card {
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border-left: 4px solid #2563eb;
+}
+
+/* CHART AREA */
+canvas {
+    max-height: 350px;
+}
+/* ===== LOGIN PAGE FIX ===== */
+
+.login-body {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    background: linear-gradient(135deg, #2563eb, #1e40af);
 }
 
-.container {
-    width: 100%;
-    max-width: 400px;
-}
-
-.card {
+.login-body .card {
     background: white;
     padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    border-radius: 12px;
+    width: 350px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
-.card h2 {
+.login-body h2 {
     text-align: center;
+    margin-bottom: 20px;
 }
 
-input, select {
+.login-body button {
     width: 100%;
-    padding: 10px;
-    margin: 8px 0;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-}
-
-button {
-    width: 100%;
-    padding: 10px;
-    background: #2563eb;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #1e3a8a;
-}
-
-#message {
-    text-align: center;
-    margin-top: 10px;
 }
